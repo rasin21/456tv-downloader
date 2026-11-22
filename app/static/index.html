@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>456tv 올인원 다운로더</title>
+<link rel="icon" href="/icon.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  /* 회색(graphite) 기본 */
+  :root {
+    --sunk: #0f0f10; --bg: #141415; --card: #19191b; --raised: #232325;
+    --line: rgba(237, 237, 237, .08); --line-strong: rgba(237, 237, 237, .14);
+    --text: #ededed; --text2: #a1a1a6; --muted: #85858b;
+    --brand: #C8B6FF; --brand-ink: #0B0A10;   /* 456tv 라일락: 로고와 다운로드 버튼만 */
+    --live: #FFD84D;                          /* 456tv 노랑: 지금 받는 항목만 */
+    --ok: #4cc38a; --err: #e5484d;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 400 14px/20px "Pretendard Variable", Pretendard, "Malgun Gothic", system-ui, sans-serif; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 24px 32px 48px; }
+  .spacer { flex: 1; }
+
+  /* 머리글 */
+  header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; height: 40px; margin-bottom: 16px; }
+  .logo { display: flex; align-items: center; gap: 8px; font-size: 17px; line-height: 1; font-weight: 500; }
+  .logo b { background: var(--brand); color: var(--brand-ink); border-radius: 6px; padding: 4px 6px; font-size: 14px; font-weight: 600; }
+  .sessions { display: flex; align-items: center; gap: 12px; font-size: 12px; line-height: 16px; color: var(--muted); }
+  .sessions .s { display: inline-flex; align-items: center; gap: 6px; }
+  .sessions .s.on { color: var(--text2); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: transparent; box-shadow: inset 0 0 0 1px var(--muted); }
+  .s.on .dot { background: var(--ok); box-shadow: none; }
+
+  /* 버튼 */
+  .btn { height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--raised);
+    cursor: pointer; white-space: nowrap; transition: background-color 150ms var(--ease), border-color 150ms var(--ease), transform 120ms var(--ease); }
+  .btn:hover { background: #2a2a2d; }
+  .btn:active { transform: scale(.98); }
+  .btn:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible, .seg button:focus-visible, nav button:focus-visible {
+    outline: 2px solid var(--text2); outline-offset: 2px; }
+  .btn.primary { background: var(--brand); border-color: transparent; color: var(--brand-ink); font-weight: 500; }
+  .btn.primary:hover { background: #d4c6ff; }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--text2); height: 32px; padding: 0 12px; }
+  .btn.ghost:hover { background: var(--raised); color: var(--text); }
+  .btn.small { height: 28px; padding: 0 12px; font-size: 13px; border-radius: 6px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  /* 탭 */
+  nav { display: flex; gap: 24px; border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+  nav button { background: none; border: 0; padding: 12px 0; color: var(--muted); cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 150ms var(--ease); }
+  nav button:hover { color: var(--text2); }
+  nav button.on { color: var(--text); border-bottom-color: var(--text); }
+  .tab { display: none; } .tab.on { display: block; }
+
+  /* 입력 */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  textarea { display: block; width: 100%; min-height: 112px; resize: vertical; background: var(--sunk); border: 1px solid var(--line);
+    border-radius: 8px; padding: 12px; outline: none; line-height: 22px; }
+  textarea::placeholder, input::placeholder { color: var(--muted); }
+  input[type=text], select { height: 36px; background: var(--sunk); border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; outline: none; }
+  select { padding-right: 8px; cursor: pointer; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .seg { display: inline-flex; height: 36px; padding: 2px; gap: 2px; background: var(--sunk); border: 1px solid var(--line); border-radius: 8px; }
+  .seg button { background: none; border: 0; padding: 0 12px; border-radius: 6px; cursor: pointer; color: var(--muted);
+    transition: background-color 150ms var(--ease), color 150ms var(--ease); }
+  .seg button:hover { color: var(--text2); }
+  .seg button.on { background: var(--raised); color: var(--text); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06); }
+  label.chk { display: inline-flex; gap: 8px; align-items: center; height: 36px; padding: 0 4px; cursor: pointer; color: var(--text2); }
+  label.chk input { accent-color: var(--text); width: 16px; height: 16px; margin: 0; }
+  .hint { color: var(--muted); font-size: 12px; line-height: 16px; margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; }
+  kbd { font: 11px/16px var(--mono); color: var(--text2); background: var(--raised); border: 1px solid var(--line-strong);
+    border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+
+  /* 받은 목록 */
+  .listhead { display: flex; align-items: center; gap: 8px; margin: 32px 0 8px; }
+  .listhead h2 { margin: 0; font-size: 15px; font-weight: 500; }
+  .count { color: var(--muted); font: 12px/16px var(--mono); font-variant-numeric: tabular-nums; }
+  .jobs { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .job { position: relative; display: grid; grid-template-columns: 16px 1fr auto; gap: 0 12px; align-items: center;
+    min-height: 60px; padding: 12px 16px; border-top: 1px solid var(--line); }
+  .job:first-child { border-top: 0; }
+  .job .dot { justify-self: center; }
+  .job.running .dot { background: var(--live); box-shadow: none; animation: rec 1.2s steps(1) infinite; }
+  .job.done .dot { background: var(--ok); box-shadow: none; }
+  .job.error .dot { background: var(--err); box-shadow: none; }
+  @keyframes rec { 50% { opacity: .35; } }
+  .jt { min-width: 0; }
+  .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta { display: flex; gap: 8px; min-width: 0; margin-top: 2px; font-size: 12px; line-height: 16px; color: var(--muted); white-space: nowrap; }
+  .meta .site { color: var(--text2); }
+  .meta .file { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; }
+  .meta .pct { font-family: var(--mono); color: var(--live); font-variant-numeric: tabular-nums; }
+  .job.error .meta .why { color: #f07a7e; white-space: normal; }
+  .job.error .meta { white-space: normal; }
+  .acts { display: flex; gap: 4px; }
+  .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: transparent; }
+  .bar i { display: block; height: 100%; background: var(--live); transform-origin: left; transform: scaleX(0);
+    transition: transform 300ms var(--ease); }
+  .empty { padding: 40px 16px; text-align: center; color: var(--muted); line-height: 22px; }
+  .empty b { display: block; color: var(--text2); font-weight: 500; }
+
+  /* 검색 */
+  .grid2 { display: grid; grid-template-columns: 64px 1fr; gap: 8px 12px; align-items: center; margin-top: 16px; }
+  .grid2 input { width: 100%; }
+  .grid2 span { color: var(--muted); font-size: 13px; }
+  .sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(184px, 1fr)); gap: 8px; margin-top: 16px; }
+  .sites .btn { height: auto; padding: 8px 12px; text-align: left; line-height: 20px; }
+  .sites .btn small { display: block; color: var(--muted); font-size: 12px; line-height: 16px; }
+
+  /* 설정 */
+  .set { display: grid; gap: 24px; padding: 20px; }
+  .set h3 { margin: 0 0 8px; font-size: 13px; color: var(--text2); font-weight: 500; }
+  .path { flex: 1; min-width: 200px; font: 12px/16px var(--mono); background: var(--sunk); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px; word-break: break-all; color: var(--text2); }
+  .set .hint { margin-top: 8px; }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 8px); background: var(--raised);
+    border: 1px solid var(--line-strong); padding: 8px 16px; border-radius: 8px; opacity: 0; pointer-events: none;
+    transition: opacity 180ms var(--ease), transform 180ms var(--ease); max-width: calc(100% - 32px); }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  @media (max-width: 640px) {
+    .wrap { padding: 16px; }
+    header { height: auto; }
+    .sessions { order: 3; width: 100%; flex-wrap: wrap; }
+    .job { grid-template-columns: 16px 1fr; }
+    .acts { grid-column: 2; margin-top: 8px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><b>456tv</b>올인원 다운로더</div>
+    <div class="spacer"></div>
+    <div class="sessions" id="sessions" title="전용 브라우저 로그인 상태"></div>
+    <button class="btn" id="loginBtn">전용 브라우저</button>
+  </header>
+
+  <nav>
+    <button class="on" data-tab="dl">다운로드</button>
+    <button data-tab="search">해외 키워드 검색</button>
+    <button data-tab="settings">설정</button>
+  </nav>
+
+  <section class="tab on" id="tab-dl">
+    <div class="card">
+      <textarea id="urls" placeholder="영상·사진 주소, 여러 개는 한 줄에 하나씩 (공유 문구째 붙여넣어도 됩니다)"></textarea>
+      <div class="row">
+        <div class="seg" id="mode">
+          <button data-v="video">영상</button><button data-v="mp3">MP3만</button><button data-v="both">영상+MP3</button>
+        </div>
+        <select id="quality" title="화질">
+          <option value="best">최고 화질</option><option value="1080">1080p</option>
+          <option value="720">720p</option><option value="480">480p</option>
+        </select>
+        <label class="chk"><input type="checkbox" id="subs">자막·대본</label>
+        <div class="spacer"></div>
+        <button class="btn" id="pasteBtn">붙여넣기</button>
+        <button class="btn primary" id="goBtn">다운로드</button>
+      </div>
+      <div class="hint">
+        <span>유튜브 · 틱톡 · 인스타그램 · 스레드 · 더우인 · 샤오홍슈 · 네이버 클립/TV</span>
+        <span>편집용 H.264 우선</span>
+        <span><kbd>Ctrl</kbd> <kbd>Enter</kbd> 바로 받기</span>
+      </div>
+    </div>
+
+    <div class="listhead">
+      <h2>받은 목록</h2><span class="count" id="count"></span>
+      <div class="spacer"></div>
+      <button class="btn ghost small" id="openRoot">저장 폴더</button>
+      <button class="btn ghost small" id="clearBtn">끝난 항목 지우기</button>
+    </div>
+    <div class="jobs" id="jobs"></div>
+  </section>
+
+  <section class="tab" id="tab-search">
+    <div class="card">
+      <div class="row" style="margin-top:0">
+        <input type="text" id="kw" placeholder="한국어 키워드" style="flex:1;min-width:200px">
+        <button class="btn primary" id="trBtn">번역</button>
+      </div>
+      <div class="grid2">
+        <span>중국어</span><input type="text" id="kw-zh">
+        <span>일본어</span><input type="text" id="kw-ja">
+        <span>영어</span><input type="text" id="kw-en">
+        <span>한국어</span><input type="text" id="kw-ko">
+      </div>
+      <div class="hint">번역이 어색하면 칸을 고친 뒤 누르세요. 검색 결과는 전용 브라우저에서 열립니다</div>
+      <div class="sites" id="sites"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-settings">
+    <div class="card set">
+      <div>
+        <h3>저장 폴더</h3>
+        <div class="row" style="margin-top:0">
+          <div class="path" id="saveDir"></div>
+          <button class="btn" id="pickBtn">바꾸기</button>
+          <button class="btn" id="openDir">열기</button>
+        </div>
+        <div class="hint">사이트별 하위 폴더에 나눠 저장</div>
+      </div>
+      <div>
+        <h3>동시에 받을 개수</h3>
+        <div class="row" style="margin-top:0">
+          <select id="conc"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+          <span class="hint" style="margin:0">다음 실행부터 적용</span>
+        </div>
+      </div>
+      <div>
+        <h3>다운로드 엔진</h3>
+        <div class="row" style="margin-top:0">
+          <span id="ver" class="count"></span><div class="spacer"></div>
+          <button class="btn" id="updBtn">엔진 업데이트</button>
+        </div>
+        <div class="hint" id="updMsg">다운로드가 자꾸 실패하면 업데이트하세요</div>
+      </div>
+      <div>
+        <h3>프로그램</h3>
+        <div class="row" style="margin-top:0">
+          <button class="btn" id="quitBtn">종료</button>
+          <span class="hint" style="margin:0">창을 닫아도 받던 항목은 끝까지 받고, 3분 뒤 스스로 꺼집니다</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const SITE_LABEL = {instagram:"인스타", threads:"스레드", tiktok:"틱톡", douyin:"더우인", xiaohongshu:"샤오홍슈", naver:"네이버"};
+const MODE_LABEL = {video: "영상", mp3: "MP3", both: "영상+MP3"};
+let state = null, mode = "video", settingsLoaded = false;
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {
+    method: "POST", headers: {"Content-Type": "application/json", "X-456tv": "1"}, body: JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ("오류 " + r.status));
+  return j;
+}
+function toast(t) { const el = $("#toast"); el.textContent = t; el.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove("show"), 2600); }
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+const base = p => String(p).split(/[\\/]/).pop();
+
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.id === "tab-" + b.dataset.tab));
+});
+function setMode(v) { mode = v; document.querySelectorAll("#mode button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); }
+document.querySelectorAll("#mode button").forEach(b => b.onclick = () => setMode(b.dataset.v));
+
+$("#pasteBtn").onclick = async () => {
+  try { const t = await navigator.clipboard.readText();
+    $("#urls").value = ($("#urls").value.trim() ? $("#urls").value.trim() + "\n" : "") + t.trim(); }
+  catch { toast("클립보드를 읽지 못했어요. Ctrl+V로 붙여넣어 주세요"); }
+};
+$("#goBtn").onclick = async () => {
+  const urls = $("#urls").value.split(/\n+/).map(s => s.trim()).filter(Boolean);
+  if (!urls.length) return toast("주소를 넣어주세요");
+  try {
+    const r = await api("/api/jobs", {urls, mode, quality: $("#quality").value, subs: $("#subs").checked});
+    if (!r.added) return toast("링크를 찾지 못했어요. http로 시작하는 주소인지 확인해 주세요");
+    $("#urls").value = ""; toast(`${r.added}개 받기 시작`); refresh();
+  } catch (e) { toast(e.message); }
+};
+$("#urls").addEventListener("keydown", e => { if (e.key === "Enter" && e.ctrlKey) $("#goBtn").click(); });
+$("#clearBtn").onclick = () => api("/api/jobs/clear", {}).then(refresh);
+$("#openRoot").onclick = $("#openDir").onclick = () => api("/api/open", {}).catch(e => toast(e.message));
+$("#loginBtn").onclick = () => api("/api/login/open", {}).then(() => toast("전용 브라우저를 열었어요. 필요한 사이트에 로그인하세요")).catch(e => toast(e.message));
+
+function renderJobs(jobs) {
+  const box = $("#jobs");
+  const done = jobs.filter(j => j.state === "done").length;
+  $("#count").textContent = jobs.length ? `${done}/${jobs.length}` : "";
+  if (!jobs.length) { box.innerHTML = '<div class="empty"><b>아직 받은 항목이 없어요</b>주소를 붙여넣고 다운로드를 누르세요</div>'; return; }
+  box.innerHTML = jobs.map(j => {
+    const files = j.files || [];
+    const first = files.find(f => /\.(mp4|mkv|webm|mov|mp3|jpg|jpeg|png|webp)$/i.test(f)) || files[0];
+    const kind = MODE_LABEL[j.mode] + (j.subs ? " · 자막" : "");
+    let meta = `<span class="site">${esc(j.platform_name)}</span><span>${kind}</span>`;
+    if (j.state === "running") {
+      const rest = esc(String(j.message || "").replace(/^받는 중 \d+% ?·? ?/, ""));
+      meta += `<span class="pct">${Math.round(j.progress)}%</span>${rest ? `<span>${rest}</span>` : `<span>${esc(j.message)}</span>`}`;
+    } else if (j.state === "queued") meta += `<span>대기 중</span>`;
+    else if (j.state === "done") meta += first ? `<span class="file">${esc(base(first))}${files.length > 1 ? ` 외 ${files.length - 1}개` : ""}</span>` : `<span>${esc(j.message)}</span>`;
+    else meta += `<span class="why">${esc(j.message)}</span>`;
+    if (j.state === "done" && /자막이 없어요/.test(j.message)) meta += `<span>자막 없음</span>`;
+    return `<div class="job ${j.state}">
+      <span class="dot"></span>
+      <div class="jt"><div class="title" title="${esc(j.url)}">${esc(j.title || j.url)}</div><div class="meta">${meta}</div></div>
+      <div class="acts">
+        ${j.state === "done" && first ? `<button class="btn ghost small" data-show="${esc(first)}">파일 보기</button>` : ""}
+        ${j.state === "error" && /로그인/.test(j.message) ? `<button class="btn ghost small" data-login>로그인</button>` : ""}
+        ${j.state === "error" ? `<button class="btn ghost small" data-retry="${j.id}">다시 시도</button>` : ""}
+      </div>
+      ${j.state === "running" ? `<div class="bar"><i style="transform:scaleX(${(j.progress || 0) / 100})"></i></div>` : ""}
+    </div>`;
+  }).join("");
+  box.querySelectorAll("[data-show]").forEach(b => b.onclick = () => api("/api/open", {path: b.dataset.show, select: true}).catch(e => toast(e.message)));
+  box.querySelectorAll("[data-retry]").forEach(b => b.onclick = () => api("/api/jobs/retry", {id: b.dataset.retry}).then(refresh));
+  box.querySelectorAll("[data-login]").forEach(b => b.onclick = () => $("#loginBtn").click());
+}
+
+function renderSessions(login, open) {
+  $("#sessions").innerHTML = Object.entries(SITE_LABEL)
+    .map(([k, n]) => `<span class="s ${login[k] ? "on" : ""}" title="${n} ${login[k] ? "로그인됨" : "로그인 안 됨"}"><span class="dot"></span>${n}</span>`).join("");
+  $("#loginBtn").textContent = open ? "전용 브라우저 열림" : "전용 브라우저";
+}
+
+let lastJobsJson = "";
+async function refresh() {
+  try { state = await api("/api/state"); } catch { return; }
+  const js = JSON.stringify(state.jobs);
+  if (js !== lastJobsJson) { lastJobsJson = js; renderJobs(state.jobs); }
+  renderSessions(state.login, state.browser_open);
+  const s = state.settings;
+  $("#saveDir").textContent = s.save_dir;
+  $("#ver").textContent = Object.entries(state.versions).map(([k, v]) => `${k} ${v}`).join("  ·  ");
+  $("#updBtn").disabled = state.update.running;
+  if (state.update.message) $("#updMsg").textContent = state.update.message;
+  if (!settingsLoaded) {
+    settingsLoaded = true; setMode(s.mode); $("#quality").value = s.quality; $("#subs").checked = !!s.subs; $("#conc").value = s.concurrent;
+  }
+}
+setInterval(refresh, 1000); refresh();
+
+$("#pickBtn").onclick = async () => {
+  toast("폴더 선택 창을 여는 중");
+  const r = await api("/api/pick-folder", {}).catch(e => (toast(e.message), null));
+  if (r && r.path) { await api("/api/settings", {save_dir: r.path}); toast("저장 폴더를 바꿨어요"); refresh(); }
+};
+$("#conc").onchange = () => api("/api/settings", {concurrent: +$("#conc").value}).then(() => toast("다음 실행부터 적용돼요"));
+$("#updBtn").onclick = () => api("/api/update-engine", {}).then(() => { $("#updMsg").textContent = "업데이트 중"; });
+$("#quitBtn").onclick = async () => {
+  if (state && state.jobs.some(j => j.state === "running" || j.state === "queued") && !confirm("받는 중인 항목이 있어요. 그래도 종료할까요?")) return;
+  await api("/api/quit", {}).catch(() => {}); document.body.innerHTML = '<div class="wrap"><div class="empty"><b>종료했어요</b>이 창을 닫아도 됩니다</div></div>';
+};
+
+const SEARCHES = [
+  ["tiktok", "zh", "틱톡", "중국어"], ["tiktok", "ja", "틱톡", "일본어"], ["tiktok", "en", "틱톡", "영어"],
+  ["douyin", "zh", "더우인", "중국어"], ["xiaohongshu", "zh", "샤오홍슈", "중국어"],
+  ["youtube_shorts", "en", "유튜브 쇼츠", "영어"], ["youtube_shorts", "ja", "유튜브 쇼츠", "일본어"],
+  ["instagram", "en", "인스타 해시태그", "영어"], ["youtube", "ko", "유튜브", "한국어"],
+];
+$("#sites").innerHTML = SEARCHES.map(([s, l, n, ln]) => `<button class="btn" data-s="${s}" data-l="${l}">${n}<small>${ln}로 검색</small></button>`).join("");
+$("#sites").querySelectorAll("button").forEach(b => b.onclick = () => {
+  const kw = $("#kw-" + b.dataset.l).value.trim() || (b.dataset.l === "ko" ? $("#kw").value.trim() : "");
+  if (!kw) return toast("먼저 번역하거나 칸을 채워주세요");
+  api("/api/search", {site: b.dataset.s, keyword: kw}).then(() => toast("전용 브라우저에서 열었어요")).catch(e => toast(e.message));
+});
+$("#trBtn").onclick = async () => {
+  const kw = $("#kw").value.trim(); if (!kw) return toast("키워드를 입력하세요");
+  $("#trBtn").disabled = true;
+  try { const r = (await api("/api/translate", {keyword: kw})).result;
+    ["zh", "ja", "en", "ko"].forEach(k => $("#kw-" + k).value = r[k] || "");
+    if (!r.zh && !r.ja && !r.en) toast("번역에 실패했어요. 칸에 직접 입력해도 됩니다");
+  } catch (e) { toast(e.message); }
+  $("#trBtn").disabled = false;
+};
+$("#kw").addEventListener("keydown", e => { if (e.key === "Enter") $("#trBtn").click(); });
+</script>
+</body>
+</html>

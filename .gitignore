@@ -1,0 +1,13 @@
+# 로그인 정보·쿠키·설정·로그 (절대 올리지 않음)
+data/
+cookies.txt
+cookies.json
+*.log
+
+# 파이썬 실행 환경·캐시
+.venv/
+__pycache__/
+*.pyc
+
+# 작업 도구 기록
+.gstack/
